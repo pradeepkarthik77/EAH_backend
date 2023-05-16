@@ -45,7 +45,8 @@ app.post("/loginuser",async (req, res) => {
     {
         const objToSend = {
             name: result.name,
-            email: result.email
+            email: result.email,
+            userType: result.userType
         }
         console.log(objToSend)
         res.status(200).send(JSON.stringify(objToSend))
@@ -171,6 +172,101 @@ app.post("/fetch_faculty_sched",async (req,res) =>
     }
 })
 
+app.post("/fetch_view_table",async (req,res) => 
+{
+
+    console.log("Got request for faculty schedule fetch")
+
+    const result = await timetable.find({}).toArray()
+
+    console.log(result)
+
+    if(result != null)
+    {
+        res.status(200).send({"schedulerecords": result})
+    }
+    else{
+        res.status(404).send()
+    }
+})
+
+
+app.post("/fetch_edit_profile",async (req,res) => 
+{
+
+    console.log("Got request for faculty profile fetch")
+
+    email = req.body.email
+
+    const result = await logintab.findOne({email: email})
+
+    // {"fname":"Pradeep","lname":"Karthik M","email": "cb.en.u4cse20447@cb.students.amrita.edu",
+    // "mobile":"8825824693","designation":"Professor","department":"CSE","email_sub":"yes"}
+
+    var username =result.name  
+
+    var nameArray = username.split(' ');
+
+    var fname = nameArray[0];
+
+    var lname = nameArray.slice(1).join(' ');
+    
+    const objToSend = {
+        fname: fname,
+        lname: lname,
+        email: result.email,
+        mobile: result.mobile,
+        designation: result.designation,
+        department: result.department,
+        email_sub: result.email_sub
+    }
+
+    if(result != null)
+    {
+        res.status(200).send({"editrecords": objToSend})
+    }
+    else{
+        res.status(404).send()
+    }
+})
+
+app.post("/update_edit_profile",async (req,res) => 
+{
+
+    console.log("Got request for faculty profile edit")
+
+    email = req.body.email
+
+    let objtoUpdate = {}
+
+    objtoUpdate.name = req.body.fname +" "+req.body.lname 
+    objtoUpdate.email = req.body.email
+    if(req.body.password != "")
+    {
+        objtoUpdate.password = req.body.password 
+    }
+    objtoUpdate.mobile = req.body.mobile 
+    objtoUpdate.designation = req.body.designation
+    objtoUpdate.department = req.body.department
+    objtoUpdate.email_sub = req.body.email_sub
+
+    const result = await logintab.findOne({email: email})
+
+    if(result != null)
+    {
+        const filter = {email: req.body.email };
+        const update = { $set:objtoUpdate };
+
+        const result = await logintab.updateOne(filter, update);
+
+        console.log(result)
+
+        res.status(200).send()
+    }
+    else{
+        res.status(404).send()
+    }
+})
 
 app.listen(5000, () => {
     console.log("Listening on port 5000...")
