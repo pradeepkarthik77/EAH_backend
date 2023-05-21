@@ -268,6 +268,42 @@ app.post("/update_edit_profile",async (req,res) =>
     }
 })
 
+app.post("/update_admin_profile",async (req,res) => 
+{
+
+    console.log("Got request for admin profile edit")
+
+    email = req.body.email
+
+    let objtoUpdate = {}
+
+    objtoUpdate.name = req.body.fname +" "+req.body.lname 
+    objtoUpdate.email = req.body.email
+    if(req.body.password != "")
+    {
+        objtoUpdate.password = req.body.password 
+    }
+    objtoUpdate.mobile = req.body.mobile 
+    objtoUpdate.email_sub = req.body.email_sub
+
+    const result = await logintab.findOne({email: email})
+
+    if(result != null)
+    {
+        const filter = {email: req.body.email };
+        const update = { $set:objtoUpdate };
+
+        const result = await logintab.updateOne(filter, update);
+
+        console.log(result)
+
+        res.status(200).send()
+    }
+    else{
+        res.status(404).send()
+    }
+})
+
 app.listen(5000, () => {
     console.log("Listening on port 5000...")
 })
