@@ -1,5 +1,6 @@
 const express = require("express");
 const MongoClient = require('mongodb').MongoClient
+const { ObjectId } = require('mongodb');
 const bodyParser = require('body-parser');
 
 const nodeMailer = require('nodemailer');
@@ -21,14 +22,23 @@ const otptab = database.collection("EAH_otp")
 const alerttable = database.collection("EAH_alerts")
 const timetable = database.collection("EAH_timetable")
 
-let transporter = nodeMailer.createTransport({
-    host: "smtp.zoho.in",
-    secure: true,
-    port: 465,
+// let transporter = nodeMailer.createTransport({
+//     host: "smtp.zoho.in",
+//     secure: true,
+//     port: 465,
+//     auth: {
+//       user: "pradeepkarthik@zohomail.in",
+//       pass: "Prkamuzolo@447",
+//     },
+//   });
+
+const transporter = nodeMailer.createTransport({
+    service: "gmail",
     auth: {
-      user: "pradeepkarthik@zohomail.in",
-      pass: "Prkamuzolo@447",
-    },
+      user: "caloriettrackerauth@gmail.com",
+      pass: "apfbshzhnkuynhtd",
+      authType: "plain"
+    }   
   });
 
 app.post("/loginuser",async (req, res) => {
@@ -81,7 +91,7 @@ app.post("/forget_email",async (req, res) => {
         otp = generateRandomNumber()
 
         const mailOptions = {
-            from: "pradeepkarthik@zohomail.in", // sender address
+            from: "caloriettrackerauth@gmail.com", // sender address
             to: email_id,
             subject: "OTP Verification for Exam Alteration Helper", // Subject line
             text: "Hello,\n Your generated OTP for login is: "+otp+"\nThanks!!!", // plain text body
@@ -123,9 +133,11 @@ app.post("/otp_handle",async (req,res) => {
     {
         otp_default = result.otp
 
+        const resulter = await logintab.findOne({email: email_id})
+
         if((req.body.otp+"") == (otp_default+""))
         {
-            res.status(200).send({email: result.email})
+            res.status(200).send({email: resulter.email,name: resulter.name})
         }
         else{
             res.status(404).send()
@@ -302,6 +314,94 @@ app.post("/update_admin_profile",async (req,res) =>
     else{
         res.status(404).send()
     }
+})
+
+app.post("/edit_exam",async (req,res) => 
+{
+
+    console.log("Got request for editing an exam")
+
+    id = req.body.formdata._id
+
+    let objecttoupdate = req.body.formdata
+
+    // console.log(id)
+    console.log("Formdata",objecttoupdate)
+
+    const result = await timetable.findOne( {_id: new ObjectId(id)})
+
+    if(result != null)
+    {
+        const filter =  {_id: new ObjectId(id)};
+        
+
+        const objtoUpdate = {}
+
+        objtoUpdate.date = objecttoupdate.date
+        objtoUpdate.TimeSlot = objecttoupdate.TimeSlot
+        objtoUpdate.Invigilator = objecttoupdate.Invigilator
+        objtoUpdate.Hall = objecttoupdate.Hall 
+        objtoUpdate.course = objecttoupdate.course 
+
+
+        const update = { $set: objtoUpdate};
+
+        const result = await timetable.updateOne(filter, update);
+
+        console.log("editresult",result)
+
+        res.status(200).send()
+    }
+    else{
+        res.status(404).send()
+    }
+})
+
+app.post("/delete_exam",async (req,res) => 
+{
+
+    console.log("Got request for deleting an exam")
+
+    id = req.body._id
+
+    const result = await timetable.findOne( {_id: new ObjectId(id)})
+
+    if(result != null)
+    {
+        const result = await timetable.deleteOne({_id: new ObjectId(id)});
+
+        console.log(result)
+
+        res.status(200).send()
+    }
+    else{
+        res.status(404).send()
+    }
+})
+
+app.post("/add_exam",async (req,res) => 
+{
+
+    let tempdata = req.body.formdata
+
+    console.log("Got request for adding exam")
+
+    const objtoUpdate = {}
+
+        objtoUpdate.date = tempdata.date
+        objtoUpdate.TimeSlot = tempdata.TimeSlot
+        objtoUpdate.Invigilator = tempdata.Invigilator
+        objtoUpdate.Hall = tempdata.Hall 
+        objtoUpdate.course = tempdata.course 
+
+    try {
+        const result = await timetable.insertOne(objtoUpdate);
+        res.status(200).send()
+      } catch (err) {
+        res.status(404).send();
+      }
+
+    res.status(404).send()
 })
 
 app.listen(5000, () => {
