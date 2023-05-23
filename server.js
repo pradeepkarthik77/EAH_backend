@@ -22,6 +22,9 @@ const otptab = database.collection("EAH_otp")
 const alerttable = database.collection("EAH_alerts")
 const timetable = database.collection("EAH_timetable")
 
+const faculty_list = ["Pradeep Karthik M","Sabarish B","Jayandar S","Logeswaran S R","Kishore S","Aaditya S"]
+const hall_list = ["A101","A102","A103","B103","C101","A104"]
+
 const transporter = nodeMailer.createTransport({
     service: "gmail",
     auth: {
@@ -180,7 +183,6 @@ app.post("/otp_handle",async (req,res) => {
     else{
         res.status(404).send()
     }
-
 })
 
 app.post("/fetch_faculty_alerts",async (req,res) => {
@@ -447,6 +449,34 @@ app.post("/add_exam",async (req,res) =>
       }
 
     res.status(404).send()
+})
+
+app.post("/fetch_available",async (req,res) => {
+
+    date = req.body.date 
+    time = req.body.TimeSlot
+
+    const array = await timetable.find({date: date,TimeSlot: time}).toArray()
+
+    console.log("GOT REQUEST FOR FETCH AVAILABLE",array)
+
+    const facultyarr = [];
+    const hallarr = [];
+
+    array.forEach((obj) => {
+        let faculty = obj.Invigilator 
+        let hall = obj.Hall
+
+        facultyarr.push(faculty);
+        hallarr.push(hall);
+
+      });
+
+      const faculty_send = faculty_list.filter((value) => !facultyarr.includes(value));
+      const hall_send = hall_list.filter((value) => !hallarr.includes(value));
+
+    res.status(200).send({"Invigilators":faculty_send,"Halls":hall_send});
+    
 })
 
 app.listen(5000, () => {
