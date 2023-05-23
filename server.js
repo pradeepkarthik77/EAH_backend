@@ -22,16 +22,6 @@ const otptab = database.collection("EAH_otp")
 const alerttable = database.collection("EAH_alerts")
 const timetable = database.collection("EAH_timetable")
 
-// let transporter = nodeMailer.createTransport({
-//     host: "smtp.zoho.in",
-//     secure: true,
-//     port: 465,
-//     auth: {
-//       user: "pradeepkarthik@zohomail.in",
-//       pass: "Prkamuzolo@447",
-//     },
-//   });
-
 const transporter = nodeMailer.createTransport({
     service: "gmail",
     auth: {
@@ -40,6 +30,50 @@ const transporter = nodeMailer.createTransport({
       authType: "plain"
     }   
   });
+
+
+  async function enterintoalert(alertstring)
+  {
+        let alertobject = {}
+
+        const currentDate = new Date();
+        const year = currentDate.getFullYear();
+        const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+        const day = String(currentDate.getDate()).padStart(2, '0');
+        const hours = String(currentDate.getHours()).padStart(2, '0');
+        const minutes = String(currentDate.getMinutes()).padStart(2, '0');
+        
+        const formattedDate = `${year}-${month}-${day} ${hours}:${minutes}`;   
+
+        alertobject.date = formattedDate
+        alertobject.description = alertstring
+
+        const result = await alerttable.insertOne(alertobject)
+
+  }
+
+async function deleteExpired()
+{
+    console.log("delete expired called")
+
+    try{
+        const currentDate = new Date();
+        const year = currentDate.getFullYear();
+        const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+        const day = String(currentDate.getDate()).padStart(2, '0');
+        
+        const formattedDate = `${year}-${month}-${day}`; 
+
+        const result = await timetable.deleteMany({ date: { $lt: formattedDate } });
+
+        console.log(`${result.deletedCount} exams deleted.`);
+    }
+
+    catch(err)
+    {
+        console.log(err)
+    }
+}
 
 app.post("/loginuser",async (req, res) => {
     console.log("Got login")
@@ -153,6 +187,8 @@ app.post("/fetch_faculty_alerts",async (req,res) => {
     
     console.log("Got request for faculty alert fetch")
 
+    await deleteExpired();
+
     const result = await alerttable.find({}).toArray()
 
     if(result != null)
@@ -211,9 +247,6 @@ app.post("/fetch_edit_profile",async (req,res) =>
     email = req.body.email
 
     const result = await logintab.findOne({email: email})
-
-    // {"fname":"Pradeep","lname":"Karthik M","email": "cb.en.u4cse20447@cb.students.amrita.edu",
-    // "mobile":"8825824693","designation":"Professor","department":"CSE","email_sub":"yes"}
 
     var username =result.name  
 
@@ -343,10 +376,11 @@ app.post("/edit_exam",async (req,res) =>
         objtoUpdate.Hall = objecttoupdate.Hall 
         objtoUpdate.course = objecttoupdate.course 
 
-
         const update = { $set: objtoUpdate};
 
         const result = await timetable.updateOne(filter, update);
+
+        await enterintoalert("The exam: "+objtoUpdate.course+" has been changed to "+objtoUpdate.date+" "+objtoUpdate.TimeSlot+" in "+objtoUpdate.Hall+" invigilated by "+objtoUpdate.Invigilator)
 
         console.log("editresult",result)
 
@@ -366,10 +400,19 @@ app.post("/delete_exam",async (req,res) =>
 
     const result = await timetable.findOne( {_id: new ObjectId(id)})
 
+    const date = result.date 
+        const timeslot = result.timeslot 
+        const invigilator = result.Invigilator
+        const hall = result.Hall
+        const course = result.course
+
     if(result != null)
     {
+
         const result = await timetable.deleteOne({_id: new ObjectId(id)});
 
+        await enterintoalert("The exam: "+course+" suppose to happen on "+date+" "+timeslot+" in "+hall+" invigilated by "+invigilator+" has been cancelled")
+        
         console.log(result)
 
         res.status(200).send()
@@ -396,8 +439,10 @@ app.post("/add_exam",async (req,res) =>
 
     try {
         const result = await timetable.insertOne(objtoUpdate);
+        await enterintoalert("A new exam: "+objtoUpdate.course+" happening on "+objtoUpdate.date+" "+objtoUpdate.TimeSlot+" in "+objtoUpdate.Hall+" invigilated by "+objtoUpdate.Invigilator+" has been added to the schedule")
         res.status(200).send()
       } catch (err) {
+        console.log(err)
         res.status(404).send();
       }
 
