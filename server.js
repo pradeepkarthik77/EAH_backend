@@ -55,6 +55,47 @@ const transporter = nodeMailer.createTransport({
 
   }
 
+  async function sendemail(subject,content,name)
+  {
+    //use the name to find the email and send the content
+
+    console.log("Got SendMail")
+
+    const query = {
+        name: name
+    }
+
+    const result = await logintab.findOne(query);
+
+    if(result !== null && result.email_sub)
+    {
+        const email = result.email;
+
+        const mailOptions = {
+            from: "caloriettrackerauth@gmail.com", // sender address
+            to: email,
+            subject: subject, // Subject line
+            text: content, // plain text body
+        };
+
+        console.log("Going to send email")
+
+        await transporter.sendMail(mailOptions,async function(err, info) {
+        if (err) {
+        // handle error
+        console.log(err);
+        }
+        else{
+            console.log("Mail sent")
+        }
+        })
+    }
+
+    else {
+    }
+
+  }
+
 async function deleteExpired()
 {
     console.log("delete expired called")
@@ -368,7 +409,6 @@ app.post("/edit_exam",async (req,res) =>
     if(result != null)
     {
         const filter =  {_id: new ObjectId(id)};
-        
 
         const objtoUpdate = {}
 
@@ -383,6 +423,8 @@ app.post("/edit_exam",async (req,res) =>
         const result = await timetable.updateOne(filter, update);
 
         await enterintoalert("The exam: "+objtoUpdate.course+" has been changed to "+objtoUpdate.date+" "+objtoUpdate.TimeSlot+" in "+objtoUpdate.Hall+" invigilated by "+objtoUpdate.Invigilator)
+
+        await sendemail("Re: "+objtoUpdate.course+" has been updated","Hi,\nThe exam: "+objtoUpdate.course+" you were assigned to invigilate has been updated. Kindly note the following details:\nDate: "+objtoUpdate.date+"\nTime: "+objtoUpdate.TimeSlot+"\nHall: "+objtoUpdate.Hall+"\nKidly be there on time!!!\nThank You.",objtoUpdate.Invigilator)
 
         console.log("editresult",result)
 
@@ -403,7 +445,7 @@ app.post("/delete_exam",async (req,res) =>
     const result = await timetable.findOne( {_id: new ObjectId(id)})
 
     const date = result.date 
-        const timeslot = result.timeslot 
+        const timeslot = result.TimeSlot
         const invigilator = result.Invigilator
         const hall = result.Hall
         const course = result.course
@@ -415,7 +457,7 @@ app.post("/delete_exam",async (req,res) =>
 
         await enterintoalert("The exam: "+course+" suppose to happen on "+date+" "+timeslot+" in "+hall+" invigilated by "+invigilator+" has been cancelled")
         
-        console.log(result)
+        await sendemail("Re: "+course+" has been cancelled.","Hi,\nThe exam: "+course+" you were assigned to invigilate has been cancelled. Kindly check the details of the cancelled exam:\nDate: "+date+"\nTime: "+timeslot+"\nHall: "+hall+"\nSorry for the inconvinience!!!\nThank You.",invigilator)
 
         res.status(200).send()
     }
@@ -442,6 +484,7 @@ app.post("/add_exam",async (req,res) =>
     try {
         const result = await timetable.insertOne(objtoUpdate);
         await enterintoalert("A new exam: "+objtoUpdate.course+" happening on "+objtoUpdate.date+" "+objtoUpdate.TimeSlot+" in "+objtoUpdate.Hall+" invigilated by "+objtoUpdate.Invigilator+" has been added to the schedule")
+        await sendemail("Re: "+objtoUpdate.course+" has been Added","Hi,\nYou are assigned to invigilate for the exam: "+objtoUpdate.course+" Kindly note the following details:\nDate: "+objtoUpdate.date+"\nTime: "+objtoUpdate.TimeSlot+"\nHall: "+objtoUpdate.Hall+"\nKidly be there on time!!!\nThank You.",objtoUpdate.Invigilator)
         res.status(200).send()
       } catch (err) {
         console.log(err)
@@ -455,6 +498,7 @@ app.post("/fetch_available",async (req,res) => {
 
     date = req.body.date 
     time = req.body.TimeSlot
+    _id = req.body._id
 
     const array = await timetable.find({date: date,TimeSlot: time}).toArray()
 
@@ -474,6 +518,18 @@ app.post("/fetch_available",async (req,res) => {
 
       const faculty_send = faculty_list.filter((value) => !facultyarr.includes(value));
       const hall_send = hall_list.filter((value) => !hallarr.includes(value));
+
+      try{
+
+      const same_row_arr = await timetable.findOne({date: date,TimeSlot: time,_id: new ObjectId(_id)})
+
+      if(same_row_arr != null)
+      {
+        console.log("Hi")
+        faculty_send.push(same_row_arr.Invigilator);
+        hall_send.push(same_row_arr.Hall);
+      }
+    }catch(err){}
 
     res.status(200).send({"Invigilators":faculty_send,"Halls":hall_send});
     
