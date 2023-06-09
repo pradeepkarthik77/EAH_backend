@@ -5,7 +5,7 @@ const MongoClient = require('mongodb').MongoClient
 const cors = require('cors');
 app.use(cors());
 
-const url = "mongodb+srv://pradeep:prad2003@backgroundcluster.pzm6kzq.mongodb.net/?retryWrites=true&w=majority"
+const url = "<your_mongodb_url>"
 
 app.use(express.json())
 
